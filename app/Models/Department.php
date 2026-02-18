@@ -10,7 +10,25 @@ class Department extends Model
     use HasFactory;
 
     protected $fillable = [
-        'name', 'location','description'
+        'area_id',
+        'name',
+        'location',
+        'description',
     ];
 
+    /**
+     * Relación con área
+     */
+    public function area()
+    {
+        return $this->belongsTo(Area::class);
+    }
+
+    /**
+     * Relación con empleados
+     */
+    public function employees()
+    {
+        return $this->hasMany(EmployeeDetail::class);
+    }
 }

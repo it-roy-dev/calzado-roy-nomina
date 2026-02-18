@@ -12,15 +12,77 @@ class EmployeeDetail extends Model
 
 
     protected $fillable = [
-        'emp_id', 'user_id', 'department_id', 'designation_id',
-        'passport_no', 'passport_expiry_date', 'passport_tel', 'nationality', 'religion', 'ethnicity',
-        'marital_status', 'spouse_occupation', 'no_of_children', 'emergency_contacts', 'date_joined', 'dob',
+        'emp_id',
+        'user_id',
+        'department_id',
+        'designation_id',
+        
+        // Documentos Guatemala
+        'dpi_number',
+        'dpi_issued_place',
+        'nit_number',
+        
+        // Pasaporte
+        'passport_no',
+        'passport_expiry_date',
+        'passport_tel',
+        
+        // Información personal
+        'nationality',
+        'religion',
+        'ethnicity',
+        'marital_status',
+        'spouse_occupation',
+        'no_of_children',
+        'disability',
+        
+        // Trabajo en extranjero
+        'worked_abroad',
+        'foreign_job_title',
+        'foreign_country',
+        'foreign_company',
+        
+        // Educación
+        'languages',
+        'birth_place',
+        'academic_level',
+        'degree_title',
+        
+        // Emergencia
+        'emergency_contacts',
+        
+        // Fechas laborales
+        'date_joined',
+        'termination_date',
+        'termination_reason',
+        'contract_type',
+        
+        // Afiliaciones
+        'igss_number',
+        'irtra_number',
+        'driver_license',
+        
+        // Estructura organizacional
+        'store_id',
+        'supervisor_id',
+        
+        // Horario
+        'work_schedule',
+        'work_hours_per_week',
+        
+        // Fechas sistema
+        'dob',
+        'created_at',
+        'updated_at',
     ];
 
     protected $casts = [
-        'emergency_contacts' => 'collection',
+        'emergency_contacts' => 'array',
+        'languages' => 'array',
+        'worked_abroad' => 'boolean',
         'date_joined' => 'date',
-        'marital_status' => MaritalStatus::class,
+        'termination_date' => 'date',
+        'dob' => 'date',
     ];
 
     public function education()
@@ -62,4 +124,21 @@ class EmployeeDetail extends Model
     {
         return $this->hasMany(EmployeeDeduction::class);
     }
+
+        /**
+     * Relación con Supervisor
+     */
+    public function supervisor()
+    {
+        return $this->belongsTo(User::class, 'supervisor_id');
+    }
+
+    /**
+     * Relación con Tienda/Sucursal
+     */
+    public function store()
+    {
+        return $this->belongsTo(Store::class, 'store_id');
+    }
+    
 }

@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::create('taxes', function (Blueprint $table) {
             $table->id();
             $table->string('name');
-            $table->boolean('percentage');
+            $table->decimal('percentage', 5, 2);
             $table->boolean('active')->nullable()->default(true);
             $table->timestamps();
         });

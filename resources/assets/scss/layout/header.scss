@@ -18,6 +18,11 @@
         .logo {
             display: $__inline__block;
             line-height: 60px;
+            img {
+                height: auto;
+                max-height: 50px;  // ← Cambia de 30px a 50px o 60px
+                width: auto;
+            }
         }
         @include respond-below(custom991) {
             position: $__absolute;
@@ -307,9 +312,9 @@
             @include margin-padding(null, 0 5px);
             .logo {
                 img {
-                    height: $__auto;
-                    max-height: 30px;
-                    width: $__auto;
+                    height: auto;
+                    max-height: 50px;  // ← Agrandado
+                    width: auto;
                 }
             }
         }

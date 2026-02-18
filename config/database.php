@@ -94,6 +94,34 @@ return [
             'sslmode' => 'prefer',
         ],
 
+        // AGREGADO PARA ORACLE EL 16/02/26
+        'oracle' => [
+            'driver' => 'oracle',
+            'host' => env('ORACLE_HOST', '192.168.0.170'),
+            'port' => env('ORACLE_PORT', '1521'),
+            'database' => '',
+            'service_name' => env('ORACLE_SERVICE_NAME', 'RPROODS'),
+            'username' => env('ORACLE_USERNAME', 'REPORTUSER'),
+            'password' => env('ORACLE_PASSWORD', 'REPORT'),
+            'charset' => 'AL32UTF8',
+            'prefix' => '',
+            'prefix_schema' => '',
+        ],
+
+        // ORACLE SERVIDOR 2 (Respaldo):
+        'oracle_rpro' => [
+            'driver' => 'oracle',
+            'host' => env('ORACLE_RPRO_HOST', '192.168.0.251'),
+            'port' => env('ORACLE_RPRO_PORT', '1521'),
+            'database' => '',
+            'service_name' => env('ORACLE_RPRO_SERVICE_NAME', 'RPROODS'),
+            'username' => env('ORACLE_RPRO_USERNAME', 'REPORTUSER'),
+            'password' => env('ORACLE_RPRO_PASSWORD', 'REPORT'),
+            'charset' => 'AL32UTF8',
+            'prefix' => '',
+            'prefix_schema' => '',
+        ],
+
         'sqlsrv' => [
             'driver' => 'sqlsrv',
             'url' => env('DB_URL'),

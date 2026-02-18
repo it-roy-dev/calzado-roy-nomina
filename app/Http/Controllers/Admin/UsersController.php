@@ -44,9 +44,9 @@ class UsersController extends BaseController
             'firstname' => 'required',
             'middlename' => 'nullable|string',
             'lastname' => 'required',
-            'email' => 'required|email|unique:users,email,except,id',
+            'email' => 'required|email|unique:users,email',
             'password' => 'required|string|confirmed',
-            'status' => 'required',
+            'status' => 'nullable',
         ]);
         $imageName = null;
         if ($request->hasFile('avatar')) {
@@ -67,7 +67,7 @@ class UsersController extends BaseController
             'phone' => $request->phone,
             'avatar' => $imageName,
             'created_by' => auth()->user()->id,
-            'is_active' => !empty($request->status),
+            'is_active' => $request->has('status') ? (bool)$request->status : true,
             'password' => Hash::make($request->password)
         ]);
         if($request->has('role') && !empty($request->input('role'))){

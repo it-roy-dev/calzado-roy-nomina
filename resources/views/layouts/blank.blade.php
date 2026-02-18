@@ -19,6 +19,20 @@
     <meta name="csrf-param" content="_token" />
     <title>{{ $pageTitle ?? '' }} - {{ !empty(Theme('name')) ? Theme('name') : config('app.name') }}</title>
     @include('partials.styles')
+
+        <style>
+        /* Logo más grande - CSS inline para forzar el cambio */
+        .header .header-left .logo img {
+            max-height: 80px !important;
+            height: auto !important;
+            width: auto !important;
+        }
+        
+        /* Para mini sidebar también */
+        .mini-sidebar .header-left .logo img {
+            max-height: 80px !important;
+        }
+    </style>
 </head>
 
 <body @isset($bodyClass) class="{{ $bodyClass }}" @endisset>

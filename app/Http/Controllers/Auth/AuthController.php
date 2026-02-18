@@ -28,7 +28,7 @@ class AuthController extends BaseController
         ]);
         $user = User::where('email', $request->email)->first();
         if (!empty($user)) {
-            if ($user->is_active === 1) {
+            if ($user->is_active == true || $user->is_active === 1) {
                 $credentials = $request->only('email', 'password');
                 if (Auth::attempt($credentials)) {
                     $user->update([

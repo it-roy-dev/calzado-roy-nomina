@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use App\Helpers\OracleHelper;
 use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\Admin\ChatController;
@@ -93,4 +94,35 @@ Route::middleware(['auth'])->group(function () {
         Route::get('mail', [SettingsController::class, 'email'])->name('settings.mail');
         Route::post('mail', [SettingsController::class, 'updateEmail'])->name('settings.mail.update');
     });
+});
+
+// RUTA TEMPORAL PARA PROBAR ORACLE
+Route::get('/test-oracle', function () {
+    try {
+        // Probar consulta a empleados
+        $employees = OracleHelper::query("
+            SELECT * FROM RPS.EMPLOYEE WHERE ROWNUM <= 2
+        ");
+        
+        // Probar consulta a tiendas
+        $stores = OracleHelper::query("
+            SELECT * FROM RPS.STORE WHERE ROWNUM <= 2
+        ");
+        
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Conexión Oracle exitosa con oci_connect',
+            'employees_count' => count($employees),
+            'stores_count' => count($stores),
+            'sample_employee' => $employees[0] ?? null,
+            'sample_store' => $stores[0] ?? null,
+        ]);
+        
+    } catch (\Exception $e) {
+        return response()->json([
+            'status' => 'error',
+            'message' => 'Error en conexión Oracle',
+            'error' => $e->getMessage(),
+        ], 500);
+    }
 });

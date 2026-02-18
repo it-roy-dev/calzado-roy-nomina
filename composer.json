@@ -34,7 +34,7 @@
     },
     "require-dev": {
         "fakerphp/faker": "^1.23",
-        "laravel-lang/common": "^6.3",
+        "laravel-lang/common": "^6.4",
         "laravel-lang/http-statuses": "^3.8",
         "laravel-lang/lang": "^15.5",
         "laravel/pint": "^1.13",
@@ -51,7 +51,8 @@
             "Database\\Seeders\\": "database/seeders/"
         },
         "files": [
-            "app/Helpers/general.php"
+            "app/Helpers/general.php",
+            "app/Helpers/OracleHelper.php"
         ]
     },
     "autoload-dev": {
