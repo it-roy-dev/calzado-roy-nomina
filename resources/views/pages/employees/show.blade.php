@@ -1,612 +1,546 @@
 @extends('layouts.app')
 
-@push('page-styles')
-    <!-- Page Css -->
-    <!-- /Page Css -->
+@push('page-style')
+<style>
+    .profile-header { background: linear-gradient(135deg, #1e3a5f 0%, #2d6a9f 100%); color: #fff; border-radius: 12px; padding: 24px; margin-bottom: 24px; }
+    .profile-header .emp-avatar { width: 90px; height: 90px; border-radius: 50%; border: 3px solid rgba(255,255,255,0.5); object-fit: cover; }
+    .profile-header h3 { color: #fff; margin: 0 0 4px; font-size: 20px; font-weight: 700; }
+    .profile-header .sub { color: rgba(255,255,255,0.8); font-size: 13px; }
+    .info-card { border: none; border-radius: 10px; box-shadow: 0 1px 6px rgba(0,0,0,0.07); margin-bottom: 20px; }
+    .info-card .card-title { font-size: 14px; font-weight: 700; color: #1e3a5f; border-bottom: 2px solid #e8f0fe; padding-bottom: 10px; margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center; }
+    .info-row { display: flex; padding: 7px 0; border-bottom: 1px solid #f5f5f5; font-size: 13px; }
+    .info-row:last-child { border-bottom: none; }
+    .info-label { color: #888; width: 160px; flex-shrink: 0; font-weight: 500; }
+    .info-value { color: #333; font-weight: 500; }
+    .badge-code { font-size: 13px; padding: 5px 12px; border-radius: 20px; font-weight: 700; }
+    .nav-tabs .nav-link { font-size: 13px; font-weight: 600; color: #666; }
+    .nav-tabs .nav-link.active { color: #1e3a5f; border-bottom: 2px solid #1e3a5f; }
+</style>
 @endpush
 
 @section('page-content')
-    <div class="content container-fluid">
+<div class="content container-fluid">
 
-        <!-- Page Header -->
-        <x-breadcrumb>
-            <x-slot name="title">{{ __("Employee Profile") }}</x-slot>
-            <ul class="breadcrumb">
-                <li class="breadcrumb-item">
-                    <a href="{{ route('dashboard') }}">{{ __('Dashboard') }}</a>
-                </li>
-                <li class="breadcrumb-item active">
-                    {{ __('Profile') }}
-                </li>
-            </ul>
-        </x-breadcrumb>
-        <!-- /Page Header -->
-        <div class="card mb-0">
-          <div class="card-body">
-            <div class="row">
-              <div class="col-md-12">
-                <div class="profile-view">
-                  <div class="profile-img-wrap">
-                    <div class="profile-img">
-                      <a href="#"
-                        ><img
-                        src="{{ !empty($user->avatar) ? asset('storage/users/' . $user->avatar) : Vite::asset('resources/assets/img/user.jpg') }}"
-                        alt="User Image"
-                      /></a>
-                    </div>
-                  </div>
-                  <div class="profile-basic">
-                    <div class="row">
-                      <div class="col-md-5">
-                        <div class="profile-info-left">
-                          <h3 class="user-name m-t-0 mb-0">{{ $user->fullname }}</h3>
-                          @if (!empty($employee->department_id))
-                          <h6 class="text-muted">{{ $employee->department->name ?? '' }}</h6>
-                          @endif
-                          @if (!empty($employee->designation_id))
-                          <small class="text-muted">{{ $employee->designation->name ?? '' }}</small>
-                          @endif
-                          @if (!empty($employee->emp_id))
-                          <div class="staff-id">{{ __('Employee ID') }} : {{ $employee->emp_id ?? '' }}</div>
-                          @endif
-                          @if (!empty($employee->date_joined))
-                          <div class="small doj text-muted">
-                            {{ __('Date of Join') }} : {{ format_date($employee->date_joined) }}
-                          </div>
-                          @endif
-                          <div class="staff-msg">
-                            <a class="btn btn-custom" href="#"
-                              >{{ __('Send Message') }}</a
-                            >
-                          </div>
-                          <br>
-                        </div>
-                      </div>
-                      <div class="col-md-7">
-                        <ul class="personal-info">
-                          @if (!empty($user->phone))
-                              <li>
-                                  <div class="title">{{ __('Phone') }}:</div>
-                                  <div class="text"><a href="#">{{ $user->phoneNumber }}</a></div>
-                              </li>
-                          @endif
-                          @if (!empty($user->email))
-                              <li>
-                                  <div class="title">{{ __('Email') }}:</div>
-                                  <div class="text">{{ $user->email }}</div>
-                              </li>
-                          @endif
+    <x-breadcrumb>
+        <x-slot name="title">Perfil de Empleado</x-slot>
+        <ul class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ route('dashboard') }}">Dashboard</a></li>
+            <li class="breadcrumb-item"><a href="{{ route('employees.list') }}">Empleados</a></li>
+            <li class="breadcrumb-item active">Perfil</li>
+        </ul>
+    </x-breadcrumb>
 
-                          @if (!empty($user->address))
-                              <li>
-                                  <div class="title">{{ __('Address') }}:</div>
-                                  <div class="text">{{ $user->address }}</div>
-                              </li>
-                          @endif
-                          @if (!empty($employee->dob))
-                              <li>
-                                  <div class="title">{{ __('Date Of Birth') }}:</div>
-                                  <div class="text">{{ format_date($user->dob) }}</div>
-                              </li>
-                          @endif
+    @php
+        $empCode  = $employee->emp_code ?? null;
+        $status   = $employee->status ?? 'PENDIENTE';
+        $statusMap = [
+            'PENDIENTE'   => ['label' => 'Pendiente',   'color' => 'warning',   'text' => '#000'],
+            'COMPLETO'    => ['label' => 'Completo',    'color' => 'success',   'text' => '#fff'],
+            'DAR_DE_BAJA' => ['label' => 'Dar de baja', 'color' => 'danger',    'text' => '#fff'],
+            'INACTIVO'    => ['label' => 'Inactivo',    'color' => 'secondary', 'text' => '#fff'],
+        ];
+        $s = $statusMap[$status] ?? $statusMap['PENDIENTE'];
+        $codeColor = $empCode ? (str_starts_with($empCode, 'A-') ? 'primary' : 'dark') : 'secondary';
+        if (!empty($employee->department_id) && $employee->department) {
+            $ubicIcon = 'fa-building';
+            $ubicNombre = $employee->department->name;
+        } elseif (!empty($employee->store_id) && $employee->store) {
+            $ubicIcon = 'fa-store';
+            $ubicNombre = $employee->store->name;
+        } else {
+            $ubicIcon = 'fa-question';
+            $ubicNombre = 'Sin asignar';
+        }
+        $bgColor = match($s['color']) {
+            'warning'   => '#ffc107',
+            'success'   => '#198754',
+            'danger'    => '#dc3545',
+            'secondary' => '#6c757d',
+            default     => '#6c757d'
+        };
+    @endphp
 
-                          @if (!empty($user->gender))
-                              <li>
-                                  <div class="title">{{ __('Gender') }}:</div>
-                                  <div class="text">{{ $user->gender }}</div>
-                              </li>
-                          @endif
-                        </ul>
-                      </div>
-                    </div>
-                  </div>
-                  <div class="pro-edit">
-                    <a href="javascript:void(0)" data-url="{{ route('employees.edit', ['employee' => \Crypt::encrypt($user->id)]) }}" data-ajax-modal="true" 
-                      data-title="Edit Employee" data-size="lg" data-bs-toggle="tooltip" data-bs-title="{{ __('Edit profile') }}"><i class="fa-solid fa-pencil"></i
-                    ></a>
-                  </div>
+    {{-- HEADER --}}
+    <div class="profile-header">
+        <div class="d-flex align-items-center gap-4">
+            <img src="{{ !empty($user->avatar) ? asset('storage/users/'.$user->avatar) : asset('images/user.jpg') }}"
+                alt="Avatar" class="emp-avatar">
+            <div class="flex-fill">
+                <div class="d-flex align-items-center gap-2 mb-1">
+                    <h3>{{ $user->fullname }}</h3>
+                    <span class="badge bg-{{ $codeColor }} badge-code">{{ $empCode ?? 'Sin código' }}</span>
+                    <span class="badge badge-code" style="background-color:{{ $bgColor }};color:{{ $s['text'] }}">
+                        {{ $s['label'] }}
+                    </span>
                 </div>
-              </div>
+                <div class="sub mb-1">
+                    <i class="fa-solid fa-briefcase fa-xs me-1"></i>{{ $employee->designation->name ?? '—' }}
+                </div>
+                <div class="sub">
+                    <i class="fa-solid {{ $ubicIcon }} fa-xs me-1"></i>{{ $ubicNombre }}
+                </div>
             </div>
-          </div>
-        </div>
-
-        <div class="card tab-box">
-          <div class="row user-tabs">
-            <div class="col-lg-12 col-md-12 col-sm-12 line-tabs">
-              <ul class="nav nav-tabs nav-tabs-bottom">
-                <li class="nav-item">
-                  <a
-                    href="#emp_profile"
-                    data-bs-toggle="tab"
-                    class="nav-link active"
-                    >{{ __('Profile') }}</a>
-                </li>
-                @superadmin
-                <li class="nav-item">
-                  <a
-                    href="#bank_statutory"
-                    data-bs-toggle="tab"
-                    class="nav-link"
-                    >{{ __('Bank & Statutory') }}
-                  </a>
-                </li>
-                @endsuperadmin
-                @if (!empty($user->assets) && ($user->assets->count() > 0))
-                <li class="nav-item">
-                  <a
-                    href="#emp_assets"
-                    data-bs-toggle="tab"
-                    class="nav-link"
-                    >{{ __('Assets') }}</a>
-                </li>
+            <div class="ms-auto d-flex gap-2">
+                @if($status === 'PENDIENTE' || $status === null)
+                <a href="{{ route('employees.expediente', \Crypt::encrypt($user->id)) }}"
+                    class="btn btn-sm btn-warning fw-bold" style="color:#000">
+                    <i class="fa-solid fa-file-pen me-1"></i> Completar Expediente
+                </a>
+                @elseif($status === 'COMPLETO')
+                <a href="{{ route('employees.expediente', \Crypt::encrypt($user->id)) }}"
+                    class="btn btn-sm btn-success">
+                    <i class="fa-solid fa-file-pen me-1"></i> Editar Expediente
+                </a>
+                @elseif($status === 'DAR_DE_BAJA')
+                <a href="{{ route('employees.expediente', \Crypt::encrypt($user->id)) }}"
+                    class="btn btn-sm btn-danger">
+                    <i class="fa-solid fa-file-pen me-1"></i> Procesar Liquidación
+                </a>
                 @endif
-              </ul>
+                <a href="javascript:void(0)"
+                    data-url="{{ route('employees.edit', ['employee' => \Crypt::encrypt($user->id)]) }}"
+                    data-ajax-modal="true" data-title="Editar Empleado" data-size="lg"
+                    class="btn btn-sm btn-light">
+                    <i class="fa-solid fa-pencil me-1"></i> Editar
+                </a>
             </div>
-          </div>
         </div>
+    </div>
 
-        <div class="tab-content">
-          <!-- Profile Info Tab -->
-          <div
-            id="emp_profile"
-            class="pro-overview tab-pane fade show active"
-          >
+    {{-- TABS --}}
+    <div class="card mb-3" style="border-radius:10px;border:none;box-shadow:0 1px 6px rgba(0,0,0,0.07)">
+        <div class="card-body py-0">
+            <ul class="nav nav-tabs border-0">
+                <li class="nav-item"><a href="#tab-perfil" data-bs-toggle="tab" class="nav-link active">Perfil</a></li>
+                <li class="nav-item"><a href="#tab-laboral" data-bs-toggle="tab" class="nav-link">Datos Laborales</a></li>
+                <li class="nav-item"><a href="#tab-educacion" data-bs-toggle="tab" class="nav-link">Educación</a></li>
+                <li class="nav-item"><a href="#tab-familia" data-bs-toggle="tab" class="nav-link">Familia</a></li>
+                @superadmin
+                <li class="nav-item"><a href="#tab-salario" data-bs-toggle="tab" class="nav-link">Salario</a></li>
+                @endsuperadmin
+            </ul>
+        </div>
+    </div>
+
+    <div class="tab-content">
+
+        {{-- TAB PERFIL --}}
+        <div id="tab-perfil" class="tab-pane fade show active">
             <div class="row">
-              <div class="col-md-6 d-flex">
-                <div class="card profile-box flex-fill">
-                  <div class="card-body">
-                    <h3 class="card-title">
-                      {{ __('Personal Informations') }}
-                      <a href="javascript:void(0)" data-url="{{ route('employee.personal-info', $employee->id) }}"
-                        class="edit-icon" data-title="{{ __('Personal Information') }}"
-                        data-ajax-modal="true" data-size="lg"
-                        >
-                        <i class="fa-solid fa-pencil"></i>
-                      </a>
-                    </h3>
-                    <ul class="personal-info">
-                      @if (!empty($employee->passport_no))
-                        <li>
-                          <div class="title">{{ __('Passport No.') }}</div>
-                          <div class="text">{{ $employee->passport_no }}</div>
-                        </li>
-                      @endif
-                      @if (!empty($employee->passport_expiry_date))
-                      <li>
-                        <div class="title">{{ __('Passport Exp Date.') }}</div>
-                        <div class="text">{{ format_date($employee->passport_expiry_date) }}</div>
-                      </li>
-                      @endif
-                      @if (!empty($employee->passport_tel))
-                      <li>
-                        <div class="title">{{ __('Tel') }}</div>
-                        <div class="text">{{ $employee->passport_tel }}</a></div>
-                      </li>
-                      @endif
-                      @if (!empty($employee->nationality))
-                      <li>
-                        <div class="title">{{ __('Nationality') }}</div>
-                        <div class="text">{{ $employee->nationality }}</div>
-                      </li>
-                      @endif
-                      @if (!empty($employee->religion))
-                      <li>
-                        <div class="title">{{ __('Religion') }}</div>
-                        <div class="text">{{ $employee->religion }}</div>
-                      </li>
-                      @endif
-                      @if (!empty($employee->marital_status))
-                      <li>
-                        <div class="title">{{ __('Marital status') }}</div>
-                        <div class="text">{{ $employee->marital_status }}</div>
-                      </li>
-                      @endif
-                      @if (!empty($employee->spouse_occupation))
-                      <li>
-                        <div class="title">{{ __('Employment of spouse') }}</div>
-                        <div class="text">{{ $employee->spouse_occupation }}</div>
-                      </li>
-                      @endif
-                      @if (!empty($employee->no_of_children))
-                      <li>
-                        <div class="title">{{ __('No. of children') }}</div>
-                        <div class="text">{{ $employee->no_of_children }}</div>
-                      </li>
-                      @endif
-                    </ul>
-                  </div>
-                </div>
-              </div>
-              <div class="col-md-6 d-flex">
-                <div class="card profile-box flex-fill">
-                  <div class="card-body">
-                    <h3 class="card-title">
-                      {{ __('Emergency Contact') }}
-                      <a href="javascript:void(0)" data-url="{{ route('employee.emergency-contacts', $employee->id) }}"
-                          class="edit-icon" data-title="{{ __('Emergency Contacts') }}"
-                          data-ajax-modal="true" data-size="lg"
-                          >
-                          <i class="fa-solid fa-pencil"></i>
-                      </a>
-                    </h3>
-                    <h5 class="section-title">{{ __('Primary') }}</h5>
-                    @php
-                        $primary_contact = $employee->emergency_contacts['primary'] ?? null;
-                        $secondary_contact = $employee->emergency_contacts['secondary'] ?? null;
-                    @endphp
-                    @if (!empty($primary_contact))
-                    <ul class="personal-info">
-                      <li>
-                        <div class="title">{{ __('Name') }}</div>
-                        <div class="text">{{ $primary_contact['name'] }}</div>
-                      </li>
-                      <li>
-                        <div class="title">{{ __('Relationship') }}</div>
-                        <div class="text">{{ $primary_contact['relationship'] }}</div>
-                      </li>
-                      <li>
-                        <div class="title">{{ __('Phone') }}</div>
-                        <div class="text">{{ $primary_contact['phone'] }}</div>
-                      </li>
-                      <li>
-                        <div class="title">{{ __('Address') }}</div>
-                        <div class="text">{{ $primary_contact['address'] }}</div>
-                      </li>
-                    </ul>
-                    @endif
-                    @if (!empty($secondary_contact))
-                    <hr />
-                    <h5 class="section-title">{{ __('Secondary') }}</h5>
-                    <ul class="personal-info">
-                      <li>
-                        <div class="title">Name</div>
-                        <div class="text">{{ $secondary_contact['name']  }}</div>
-                      </li>
-                      <li>
-                        <div class="title">Relationship</div>
-                        <div class="text">{{ $secondary_contact['relationship']  }}</div>
-                      </li>
-                      <li>
-                        <div class="title">Phone</div>
-                        <div class="text">{{ $secondary_contact['phone'] }}</div>
-                      </li>
-                    </ul>
-                    @endif
-                  </div>
-                </div>
-              </div>
-            </div>
-            
-            <div class="row">
-              <div class="col-md-6 d-flex">
-                <div class="card profile-box flex-fill">
-                  <div class="card-body">
-                    <h3 class="card-title">
-                      {{ __('Education Informations') }}
-                      <a
-                      href="javascript:void(0)" data-url="{{ route('employee.education', $employee->id) }}"
-                        class="edit-icon" data-title="{{ __('Education Information') }}"
-                        data-ajax-modal="true" data-size="lg"
-                        data-bs-toggle="tooltip" data-bs-title="Education"
-                        ><i class="fa-solid fa-pencil"></i>
-                      </a>
-                    </h3>
-                    <div class="experience-box">
-                      <ul class="experience-list">
-                        @if(!empty($employee->education) && $employee->education->count() > 0)
-                          @foreach ($employee->education as $education)
-                          <li>
-                            <div class="experience-user">
-                              <div class="before-circle"></div>
+                <div class="col-md-6">
+                    <div class="card info-card">
+                        <div class="card-body">
+                            <div class="card-title">
+                                Información Personal
+                                <a href="javascript:void(0)" data-url="{{ route('employee.personal-info', $employee->id) }}"
+                                    data-ajax-modal="true" data-title="Información Personal" data-size="lg">
+                                    <i class="fa-solid fa-pencil fa-xs text-muted"></i>
+                                </a>
                             </div>
-                            <div class="experience-content">
-                              <div class="timeline-content">
-                                <a href="#/" class="name"
-                                  >{{$education->institution}}</a
-                                >
-                                <div>{{ $education->course }}</div>
-                                <span class="time">{{ $education->start_date }} - {{ $education->end_date }}</span>
-                                @if (!empty($education->file))
-                                    <a href="{{ uploadedAsset($education->file,'employees/education') }}" target="_blank" rel="noopener noreferrer">{{ __('View File') }}</a>
-                                @endif
-                              </div>
-                            </div>
-                          </li>
-                          @endforeach
-                        @endif
-                      </ul>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div class="col-md-6 d-flex">
-                <div class="card profile-box flex-fill">
-                  <div class="card-body">
-                    <h3 class="card-title">
-                      {{ __('Work Experience') }}
-                      <a
-                      href="javascript:void(0)" data-url="{{ route('employee.experience', $employee->id) }}"
-                          class="edit-icon" data-title="{{ __('Working Experience Information') }}"
-                          data-ajax-modal="true" data-size="lg"
-                          data-bs-toggle="tooltip" data-bs-title="Working Experience"
-                          ><i class="fa-solid fa-pencil"></i>
-                      </a>
-                    </h3>
-                    <div class="experience-box">
-                      <ul class="experience-list">
-                          @if (!empty($employee->workExperience))
-                              @foreach ($employee->workExperience as $experience)
-                              <li>
-                                <div class="experience-user">
-                                  <div class="before-circle"></div>
-                                </div>
-                                <div class="experience-content">
-                                  <div class="timeline-content">
-                                    <span class="name">{{ $experience->position .__(" At "). $experience->company}}</span>
-                                    <span class="time"
-                                      >{{ format_date($experience->start_date) }} - {{ format_date($experience->end_date) }} ({{ $experience->dateDifference }}) </span>
-                                      @if (!empty($experience->file))
-                                          <a href="{{ uploadedAsset($experience->file,'employees/work-experience') }}" target="_blank" rel="noopener noreferrer">{{ __('View File') }}</a>
-                                      @endif
-                                  </div>
-                                </div>
-                              </li>
-                              @endforeach
-                          @endif
-                      </ul>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div class="row">
-              <div class="col-md-12 d-flex">
-                <div class="card profile-box flex-fill">
-                  <div class="card-body">
-                    <h3 class="card-title">
-                      {{ __('Family Informations') }}
-                      <a href="javascript:void(0)" data-url="{{ route('family-information.create', ['user' => $user->id]) }}"
-                          class="edit-icon" data-title="{{ __('Add Family Information') }}"
-                          data-ajax-modal="true" data-size="lg"
-                          data-bs-toggle="tooltip" data-bs-title="Add Family Member"
-                          >
-                          <i class="fa-solid fa-plus"></i>
-                      </a>
-                    </h3>
-                    <div class="table-responsive">
-                      <table class="table table-nowrap">
-                        <thead>
-                          <tr>
-                            <th>{{ __('Name') }}</th>
-                            <th>{{ __('Relationship') }}</th>
-                            <th>{{ __('Date of Birth') }}</th>
-                            <th>{{ __('Phone') }}</th>
-                            <th>{{ __('Action') }}</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          @if ($user->has('family'))
-                              @foreach ($user->family as $member)
-                              <tr>
-                                  @if (!empty($member->picture))
-                                  <td>
-                                      {!! Spatie\Menu\Laravel\Html::userAvatar($member->name, !empty($member->picture) ? uploadedAsset($member->picture,'family-members'): Vite::asset('resources/assets/img/user.jpg')) !!}
-                                  </td>
-                                  @else
-                                  <td>{{ $member->name }}</td>
-                                  @endif
-                                  <td>{{ $member->relationship }}</td>
-                                  <td>{{ format_date($member->dob) }}</td>
-                                  <td>{{ $member->phone }}</td>
-                                  <x-table-action>
-                                      <a class="dropdown-item" href="javascript:void(0)" data-url="javascript:void(0)" data-url="{{ route('family-information.edit', $member->id) }}" data-ajax-modal="true" 
-                                          data-title="{{ __('Edit Family Member') }}" data-size="lg" data-bs-toggle="tooltip" data-bs-title="{{ __("Edit Family Member Information") }}">
-                                          <i class="fa-solid fa-pencil m-r-5"></i>
-                                          {{ __('Edit') }}
-                                      </a>
-                                      <a class="dropdown-item deleteBtn" data-route="{{ route('family-information.destroy', $member->id) }}"
-                                          data-title="{{ __('Delete User') }}" data-bs-toggle="tooltip" data-bs-title="{{ __('Delete Family Member') }}" data-question="{{ __('Are you sure you want to delete?') }}"
-                                          href="javascript:void(0)" data-bs-toggle="tootip" data-bs-title="{{ __('Delete Family Member') }}">
-                                          <i class="fa-regular fa-trash-can m-r-5"></i>
-                                          {{ __('Delete') }}
-                                      </a>
-                                  </x-table-action>
-
-                                </tr>
-                              @endforeach
-                          @endif
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-          <!-- /Profile Info Tab -->
-
-          @superadmin
-          <!-- Bank Statutory Tab -->
-          <div class="tab-pane fade" id="bank_statutory">
-            <div class="card">
-              <div class="card-body">
-                <h3 class="card-title">{{ __('Basic Salary Information') }}</h3>
-                <form action="{{ route('employee.salary-setting', $employee->id) }}" method="post">
-                  @csrf
-                  <div class="row">
-                    <input type="hidden" name="salary_detail_id" value="{{ !empty($employee->salaryDetails) ? $employee->salaryDetails->id : '' }}">
-                    <div class="col-sm-4">
-                      <div class="input-block mb-3">
-                        <label class="col-form-label"
-                          >{{ __('Salary basis') }}
-                          <span class="text-danger">*</span></label
-                        >
-                        <select class="form-control" name="basis">
-                          <option value="">{{ __('Select salary basis type') }}</option>
-                          @foreach (\App\Enums\Payroll\SalaryType::cases() as $item)
-                              <option {{ (!empty($employee->salaryDetails) && $employee->salaryDetails->basis === $item) ? 'selected': '' }} value="{{ $item->value }}">{{ $item->name }}</option>
-                          @endforeach
-                        </select>
-                      </div>
-                    </div>
-                    <div class="col-sm-4">
-                      <div class="input-block mb-3">
-                        <label class="col-form-label"
-                          >{{ __('Salary amount') }}
-                        </label>
-                        <div class="input-group">
-                          <span class="input-group-text">{{ LocaleSettings('currency_symbol') }}</span>
-                          <input
-                            type="text"
-                            class="form-control"
-                            placeholder="Type your salary amount"
-                            name="base_salary"
-                            value="{{ !empty($employee->salaryDetails) ? $employee->salaryDetails->base_salary : 0.00 }}"
-                          />
+                            @if($employee->dob)
+                            <div class="info-row"><span class="info-label">Fecha de nacimiento</span><span class="info-value">{{ format_date($employee->dob) }}</span></div>
+                            @endif
+                            @if($employee->birth_place)
+                            <div class="info-row"><span class="info-label">Lugar de nacimiento</span><span class="info-value">{{ $employee->birth_place }}</span></div>
+                            @endif
+                            @if($employee->nationality)
+                            <div class="info-row"><span class="info-label">Nacionalidad</span><span class="info-value">{{ $employee->nationality }}</span></div>
+                            @endif
+                            @if($employee->marital_status)
+                            <div class="info-row"><span class="info-label">Estado civil</span><span class="info-value">{{ $employee->marital_status }}</span></div>
+                            @endif
+                            @if($employee->religion)
+                            <div class="info-row"><span class="info-label">Religión</span><span class="info-value">{{ $employee->religion }}</span></div>
+                            @endif
+                            @if($employee->ethnicity)
+                            <div class="info-row"><span class="info-label">Etnia</span><span class="info-value">{{ $employee->ethnicity }}</span></div>
+                            @endif
+                            @if($employee->no_of_children)
+                            <div class="info-row"><span class="info-label">No. de hijos</span><span class="info-value">{{ $employee->no_of_children }}</span></div>
+                            @endif
+                            @if($user->address)
+                            <div class="info-row"><span class="info-label">Dirección</span><span class="info-value">{{ $user->address }}</span></div>
+                            @endif
+                            @if($user->phone)
+                            <div class="info-row"><span class="info-label">Teléfono</span><span class="info-value">{{ $user->phoneNumber }}</span></div>
+                            @endif
+                            @if($user->email)
+                            <div class="info-row"><span class="info-label">Correo</span><span class="info-value">{{ $user->email }}</span></div>
+                            @endif
+                            @if($employee->gender)
+                            <div class="info-row"><span class="info-label">Género</span><span class="info-value">{{ $employee->gender }}</span></div>
+                            @endif
+                            @if($employee->phone_secondary)
+                            <div class="info-row"><span class="info-label">Teléfono adicional</span><span class="info-value">{{ $employee->phone_secondary }}</span></div>
+                            @endif
                         </div>
-                      </div>
                     </div>
-                    <div class="col-sm-4">
-                      <div class="input-block mb-3">
-                        <label class="col-form-label">{{ __('Payment type') }}</label>
-                        <select class="form-control" name="payment_method">
-                          <option value="">{{ __('Select payment type') }}</option>
-                          @foreach (\App\Enums\Payroll\PaymentMethod::cases() as $item)
-                            <option {{ !empty($employee->salaryDetails) && $employee->salaryDetails->payment_method === $item ? 'selected': '' }} value="{{ $item->value }}">{{ $item->name }}</option>
-                          @endforeach
-                        </select>
-                      </div>
-                    </div>
-                  </div>
-                  @if (!empty(SalarySettings('enable_esi_fund')))
-                  <hr />
-                  <h3 class="card-title">{{ __('PF Information') }}</h3>
-                  <div class="row">
-                    <div class="col-sm-4">
-                      <div class="input-block mb-3">
-                        <label class="col-form-label">{{ __('PF contribution') }}</label>
-                        <select class="form-control" name="pf_contribution">
-                          <option value="">{{ __('Select To Enable') }}</option>
-                          <option {{ (!empty($employee->salaryDetails) && $employee->salaryDetails->pf_contribution == '1') ? 'selected': '' }} value="1">{{ __('Yes') }}</option>
-                          <option {{ (!empty($employee->salaryDetails) && $employee->salaryDetails->pf_contribution == '0') ? 'selected': '' }} value="0">{{ __('No') }}</option>
-                        </select>
-                      </div>
-                    </div>
-                    <div class="col-sm-4">
-                      <div class="input-block mb-3">
-                        <label class="col-form-label">{{ __('PF No.') }}</label>
-                        <input
-                          type="text"
-                          class="form-control"
-                          placeholder="N/A"
-                          name="pf_number"
-                          value="{{ !empty($employee->salaryDetails) ? $employee->salaryDetails->pf_number: '' }}"
-                        />
-                      </div>
-                    </div>
-                    <div class="col-sm-4">
-                      <div class="input-block mb-3">
-                        <label class="col-form-label">{{ __('Additional Rate') }}</label>
-                        <input
-                          type="text"
-                          class="form-control"
-                          placeholder="N/A"
-                          name="additional_pf_rate"
-                          value="{{ !empty($employee->salaryDetails) ? $employee->salaryDetails->additional_pf: '' }}"
-                        />
-                      </div>
-                    </div>
-                    <div class="col-sm-4">
-                      <div class="input-block mb-3">
-                        <label class="col-form-label">{{ __('Total rate') }}</label>
-                        <input
-                          type="text"
-                          class="form-control"
-                          placeholder="N/A"
-                          name="total_pf_rate"
-                          value="{{ !empty($employee->salaryDetails) ? $employee->salaryDetails->total_pf : '' }}"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                  @endif
-                  @if (!empty(SalarySettings('enable_esi_fund')))  
-                  <hr />
-                  <h3 class="card-title">{{ __('ESI Information') }}</h3>
-                  <div class="row">
-                    <div class="col-sm-4">
-                      <div class="input-block mb-3">
-                        <label class="col-form-label">{{ __('Enable ESI contribution') }}</label>
-                        <select class="form-control" name="esi_contribution">
-                          <option value="">{{ __('Select To Enable') }}</option>
-                          <option {{ !empty($employee->salaryDetails) && $employee->salaryDetails->esi_contribution == '1' ? 'selected': '' }} value="1">{{ __('Yes') }}</option>
-                          <option {{ !empty($employee->salaryDetails) && $employee->salaryDetails->esi_contribution == '0' ? 'selected': '' }} value="0">{{ __('No') }}</option>
-                        </select>
-                      </div>
-                    </div>
-                    <div class="col-sm-4">
-                      <div class="input-block mb-3">
-                        <label class="col-form-label">{{ __('ESI No.') }}</label>
-                        <input
-                          type="text"
-                          class="form-control"
-                          placeholder="N/A"
-                          name="esi_number"
-                          value="{{ !empty($employee->salaryDetails) ? $employee->salaryDetails->esi_number: '' }}"
-                        />
-                      </div>
-                    </div>
-                    <div class="col-sm-4">
-                      <div class="input-block mb-3">
-                        <label class="col-form-label">{{ __('Additional Rate') }}</label>
-                        <input
-                          type="text"
-                          class="form-control"
-                          placeholder="N/A"
-                          name="additional_esi_rate"
-                          value="{{ !empty($employee->salaryDetails) ? $employee->salaryDetails->additional_esi: '' }}"
-                        />
-                      </div>
-                    </div>
-                    <div class="col-sm-4">
-                      <div class="input-block mb-3">
-                        <label class="col-form-label">{{ __('Total rate') }}</label>
-                        <input
-                          type="text"
-                          class="form-control"
-                          placeholder="N/A"
-                          name="total_esi_rate"
-                          value="{{ !empty($employee->salaryDetails) ? $employee->salaryDetails->total_additional_esi_rate: '' }}"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                  @endif
+                </div>
 
-                  <div class="submit-section">
-                    <button class="btn btn-primary submit-btn" type="submit">
-                      {{ __('Save') }}
-                    </button>
-                  </div>
-                </form>
-              </div>
+                <div class="col-md-6">
+                    <div class="card info-card">
+                        <div class="card-body">
+                            <div class="card-title">
+                                Documentos Guatemala
+                                <a href="javascript:void(0)" data-url="{{ route('employee.personal-info', $employee->id) }}"
+                                    data-ajax-modal="true" data-title="Documentos" data-size="lg">
+                                    <i class="fa-solid fa-pencil fa-xs text-muted"></i>
+                                </a>
+                            </div>
+                            @if($employee->dpi_number)
+                            <div class="info-row"><span class="info-label">DPI</span><span class="info-value">{{ $employee->dpi_number }}</span></div>
+                            @endif
+                            @if($employee->dpi_issued_place)
+                            <div class="info-row"><span class="info-label">Lugar emisión DPI</span><span class="info-value">{{ $employee->dpi_issued_place }}</span></div>
+                            @endif
+                            @if($employee->nit_number)
+                            <div class="info-row"><span class="info-label">NIT</span><span class="info-value">{{ $employee->nit_number }}</span></div>
+                            @endif
+                            @if($employee->igss_number)
+                            <div class="info-row"><span class="info-label">No. IGSS</span><span class="info-value">{{ $employee->igss_number }}</span></div>
+                            @endif
+                            @if($employee->irtra_number)
+                            <div class="info-row"><span class="info-label">No. IRTRA</span><span class="info-value">{{ $employee->irtra_number }}</span></div>
+                            @endif
+                            @if($employee->driver_license)
+                            <div class="info-row"><span class="info-label">Licencia conducir</span><span class="info-value">{{ $employee->driver_license }}</span></div>
+                            @endif
+                            @if($employee->disability !== null)
+                            <div class="info-row"><span class="info-label">Discapacidad</span><span class="info-value">{{ $employee->disability ? 'Sí' : 'No' }}</span></div>
+                            @endif
+                            @if($employee->disability && $employee->disability_description)
+                            <div class="info-row"><span class="info-label">Tipo de discapacidad</span><span class="info-value">{{ $employee->disability_description }}</span></div>
+                            @endif
+                        </div>
+                    </div>
+
+                    <div class="card info-card">
+                        <div class="card-body">
+                            <div class="card-title">
+                                Contacto de Emergencia
+                                <a href="javascript:void(0)" data-url="{{ route('employee.emergency-contacts', $employee->id) }}"
+                                    data-ajax-modal="true" data-title="Contactos de Emergencia" data-size="lg">
+                                    <i class="fa-solid fa-pencil fa-xs text-muted"></i>
+                                </a>
+                            </div>
+                            @php
+                                $primary   = $employee->emergency_contacts['primary'] ?? null;
+                                $secondary = $employee->emergency_contacts['secondary'] ?? null;
+                            @endphp
+                            @if($primary)
+                                <div class="small fw-bold text-muted mb-2">Primario</div>
+                                <div class="info-row"><span class="info-label">Nombre</span><span class="info-value">{{ $primary['name'] ?? '—' }}</span></div>
+                                <div class="info-row"><span class="info-label">Parentesco</span><span class="info-value">{{ $primary['relationship'] ?? '—' }}</span></div>
+                                <div class="info-row"><span class="info-label">Teléfono</span><span class="info-value">{{ $primary['phone'] ?? '—' }}</span></div>
+                            @endif
+                            @if($secondary)
+                                <div class="small fw-bold text-muted mt-3 mb-2">Secundario</div>
+                                <div class="info-row"><span class="info-label">Nombre</span><span class="info-value">{{ $secondary['name'] ?? '—' }}</span></div>
+                                <div class="info-row"><span class="info-label">Parentesco</span><span class="info-value">{{ $secondary['relationship'] ?? '—' }}</span></div>
+                                <div class="info-row"><span class="info-label">Teléfono</span><span class="info-value">{{ $secondary['phone'] ?? '—' }}</span></div>
+                            @endif
+                            @if(!$primary && !$secondary)
+                                <p class="text-muted small">Sin contactos registrados.</p>
+                            @endif
+                        </div>
+                    </div>
+                </div>
             </div>
-          </div>
-          <!-- /Bank Statutory Tab -->
-          @endsuperadmin
-
-          <!-- Assets -->
-          <div class="tab-pane fade" id="emp_assets">
-              <livewire:employee-asset :user="$user"/>
-          </div>
-          <!-- /Assets -->
-
         </div>
+
+        {{-- TAB LABORAL --}}
+        <div id="tab-laboral" class="tab-pane fade">
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="card info-card">
+                        <div class="card-body">
+                            <div class="card-title">Datos Laborales</div>
+                            @if($employee->date_joined)
+                            <div class="info-row"><span class="info-label">Fecha de ingreso</span><span class="info-value">{{ format_date($employee->date_joined) }}</span></div>
+                            @endif
+                            @if($employee->contract_type)
+                            <div class="info-row"><span class="info-label">Tipo de contrato</span><span class="info-value">{{ $employee->contract_type }}</span></div>
+                            @endif
+                            @if($employee->work_schedule)
+                            <div class="info-row"><span class="info-label">Horario</span><span class="info-value">{{ $employee->work_schedule }}</span></div>
+                            @endif
+                            @if($employee->work_hours_per_week)
+                            <div class="info-row"><span class="info-label">Horas por semana</span><span class="info-value">{{ $employee->work_hours_per_week }}</span></div>
+                            @endif
+                            @if($employee->supervisor)
+                            <div class="info-row"><span class="info-label">Supervisor</span><span class="info-value">{{ $employee->supervisor->fullname }}</span></div>
+                            @endif
+                            @if($employee->termination_date)
+                            <div class="info-row"><span class="info-label">Fecha de baja</span><span class="info-value">{{ format_date($employee->termination_date) }}</span></div>
+                            @endif
+                            @if($employee->termination_reason)
+                            <div class="info-row"><span class="info-label">Motivo de baja</span><span class="info-value">{{ $employee->termination_reason }}</span></div>
+                            @endif
+                        </div>
+                        <div class="card info-card mt-3">
+                            <div class="card-body">
+                                <div class="card-title">Datos Bancarios</div>
+                                @if($employee->payment_method)
+                                <div class="info-row"><span class="info-label">Forma de pago</span><span class="info-value">{{ $employee->payment_method }}</span></div>
+                                @endif
+                                @if($employee->bank_name)
+                                <div class="info-row"><span class="info-label">Banco</span><span class="info-value">{{ $employee->bank_name }}</span></div>
+                                @endif
+                                @if($employee->bank_account_number)
+                                <div class="info-row"><span class="info-label">No. de cuenta</span><span class="info-value">{{ $employee->bank_account_number }}</span></div>
+                                @endif
+                                @if($employee->bank_account_type)
+                                <div class="info-row"><span class="info-label">Tipo de cuenta</span><span class="info-value">{{ $employee->bank_account_type }}</span></div>
+                                @endif
+                                @if($employee->personal_email)
+                                <div class="info-row"><span class="info-label">Correo personal</span><span class="info-value">{{ $employee->personal_email }}</span></div>
+                                @endif
+                                @if($employee->immediate_supervisor_name)
+                                <div class="info-row"><span class="info-label">Jefe inmediato</span><span class="info-value">{{ $employee->immediate_supervisor_name }}</span></div>
+                                @endif
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card info-card">
+                        <div class="card-body">
+                            <div class="card-title">Datos Oracle PRISMA</div>
+                            <div class="info-row"><span class="info-label">Código Oracle</span><span class="info-value">{{ $employee->oracle_emp_code ?? '—' }}</span></div>
+                            <div class="info-row"><span class="info-label">Código SmartHR</span><span class="info-value">{{ $employee->emp_code ?? 'Sin asignar' }}</span></div>
+                            <div class="info-row"><span class="info-label">Estado Oracle</span>
+                                <span class="info-value">
+                                    @if($employee->oracle_active)
+                                        <span class="badge bg-success">Activo</span>
+                                    @else
+                                        <span class="badge bg-danger">Inactivo</span>
+                                    @endif
+                                </span>
+                            </div>
+                            <div class="info-row"><span class="info-label">Estado expediente</span>
+                                <span class="info-value">
+                                    <span class="badge" style="background-color:{{ $bgColor }};color:{{ $s['text'] }}">{{ $s['label'] }}</span>
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                    @if($employee->worked_abroad)
+                    <div class="card info-card">
+                        <div class="card-body">
+                            <div class="card-title">Experiencia en el Extranjero</div>
+                            @if($employee->foreign_country)
+                            <div class="info-row"><span class="info-label">País</span><span class="info-value">{{ $employee->foreign_country }}</span></div>
+                            @endif
+                            @if($employee->foreign_company)
+                            <div class="info-row"><span class="info-label">Empresa</span><span class="info-value">{{ $employee->foreign_company }}</span></div>
+                            @endif
+                            @if($employee->foreign_job_title)
+                            <div class="info-row"><span class="info-label">Puesto</span><span class="info-value">{{ $employee->foreign_job_title }}</span></div>
+                            @endif
+                        </div>
+                    </div>
+                    @endif
+                </div>
+            </div>
+        </div>
+
+        {{-- TAB EDUCACION --}}
+        <div id="tab-educacion" class="tab-pane fade">
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="card info-card">
+                        <div class="card-body">
+                            <div class="card-title">
+                                Educación
+                                <a href="javascript:void(0)" data-url="{{ route('employee.education', $employee->id) }}"
+                                    data-ajax-modal="true" data-title="Información Educativa" data-size="lg">
+                                    <i class="fa-solid fa-pencil fa-xs text-muted"></i>
+                                </a>
+                            </div>
+                            @if($employee->academic_level)
+                            <div class="info-row"><span class="info-label">Nivel académico</span><span class="info-value">{{ $employee->academic_level }}</span></div>
+                            @endif
+                            @if($employee->degree_title)
+                            <div class="info-row"><span class="info-label">Título</span><span class="info-value">{{ $employee->degree_title }}</span></div>
+                            @endif
+                            @if(!empty($employee->languages))
+                            <div class="info-row"><span class="info-label">Idiomas</span><span class="info-value">{{ implode(', ', $employee->languages) }}</span></div>
+                            @endif
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card info-card">
+                        <div class="card-body">
+                            <div class="card-title">
+                                Experiencia Laboral
+                                <a href="javascript:void(0)" data-url="{{ route('employee.experience', $employee->id) }}"
+                                    data-ajax-modal="true" data-title="Experiencia Laboral" data-size="lg">
+                                    <i class="fa-solid fa-pencil fa-xs text-muted"></i>
+                                </a>
+                            </div>
+                            @forelse($employee->workExperience as $exp)
+                            <div class="info-row flex-column" style="align-items:flex-start;gap:2px">
+                                <div class="fw-600" style="font-size:13px">{{ $exp->position }} — {{ $exp->company }}</div>
+                                <div class="text-muted" style="font-size:12px">{{ format_date($exp->start_date) }} - {{ format_date($exp->end_date) }}</div>
+                            </div>
+                            @empty
+                            <p class="text-muted small">Sin experiencia registrada.</p>
+                            @endforelse
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {{-- TAB FAMILIA --}}
+        <div id="tab-familia" class="tab-pane fade">
+            <div class="card info-card">
+                <div class="card-body">
+                    <div class="card-title">
+                        Información Familiar
+                        <a href="javascript:void(0)" data-url="{{ route('family-information.create', ['user' => $user->id]) }}"
+                            data-ajax-modal="true" data-title="Agregar Familiar" data-size="lg">
+                            <i class="fa-solid fa-plus fa-xs text-muted"></i>
+                        </a>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Nombre</th>
+                                    <th>Parentesco</th>
+                                    <th>Fecha Nacimiento</th>
+                                    <th>Teléfono</th>
+                                    <th>Acción</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @forelse($user->family ?? [] as $member)
+                                <tr>
+                                    <td>{{ $member->name }}</td>
+                                    <td>{{ $member->relationship }}</td>
+                                    <td>{{ format_date($member->dob) }}</td>
+                                    <td>{{ $member->phone }}</td>
+                                    <x-table-action>
+                                        <a class="dropdown-item" href="javascript:void(0)"
+                                            data-url="{{ route('family-information.edit', $member->id) }}"
+                                            data-ajax-modal="true" data-title="Editar Familiar" data-size="lg">
+                                            <i class="fa-solid fa-pencil m-r-5"></i> Editar
+                                        </a>
+                                        <a class="dropdown-item deleteBtn"
+                                            data-route="{{ route('family-information.destroy', $member->id) }}"
+                                            data-question="¿Eliminar este familiar?" href="javascript:void(0)">
+                                            <i class="fa-regular fa-trash-can m-r-5"></i> Eliminar
+                                        </a>
+                                    </x-table-action>
+                                </tr>
+                                @empty
+                                <tr><td colspan="5" class="text-muted text-center small">Sin familiares registrados.</td></tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {{-- TAB SALARIO --}}
+        @superadmin
+        <div id="tab-salario" class="tab-pane fade">
+            <div class="card info-card">
+                <div class="card-body">
+                    <div class="card-title">Información Salarial</div>
+                    <form action="{{ route('employee.salary-setting', $employee->id) }}" method="post">
+                        @csrf
+                        <input type="hidden" name="salary_detail_id" value="{{ $employee->salaryDetails->id ?? '' }}">
+                        <div class="row g-3">
+                            <div class="col-sm-4">
+                                <div class="input-block mb-3">
+                                    <label class="col-form-label">Tipo de salario <span class="text-danger">*</span></label>
+                                    <select class="form-control" name="basis">
+                                        <option value="">Seleccionar tipo</option>
+                                        <option value="monthly" {{ ($employee->salaryDetails->basis?->value ?? '') === 'monthly' ? 'selected': '' }}>Mensual</option>
+                                        <option value="weekly" {{ ($employee->salaryDetails->basis?->value ?? '') === 'weekly' ? 'selected': '' }}>Semanal</option>
+                                        <option value="hourly" {{ ($employee->salaryDetails->basis?->value ?? '') === 'hourly' ? 'selected': '' }}>Por hora</option>
+                                        <option value="contract" {{ ($employee->salaryDetails->basis?->value ?? '') === 'contract' ? 'selected': '' }}>Por contrato</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-sm-4">
+                                <div class="input-block mb-3">
+                                    <label class="col-form-label">Sueldo Ordinario</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text">GTQ</span>
+                                        <input type="text" class="form-control" name="base_salary"
+                                            value="{{ $employee->salaryDetails->base_salary ?? '0.00' }}"/>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-sm-4">
+                                <div class="input-block mb-3">
+                                    <label class="col-form-label">Método de pago</label>
+                                    <select class="form-control" name="payment_method">
+                                        <option value="">Seleccionar método</option>
+                                        <option value="bank" {{ ($employee->salaryDetails->payment_method?->value ?? '') === 'bank' ? 'selected': '' }}>Transferencia bancaria</option>
+                                        <option value="cheque" {{ ($employee->salaryDetails->payment_method?->value ?? '') === 'cheque' ? 'selected': '' }}>Cheque</option>
+                                        <option value="cash" {{ ($employee->salaryDetails->payment_method?->value ?? '') === 'cash' ? 'selected': '' }}>Efectivo</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-sm-4">
+                                <div class="input-block mb-3">
+                                    <label class="col-form-label">Bonificación Decreto 37-2001</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text">GTQ</span>
+                                        <input type="text" class="form-control" name="bonificacion_decreto"
+                                            value="{{ $employee->salaryDetails->bonificacion_decreto ?? '250.00' }}"/>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-sm-4">
+                                <div class="input-block mb-3">
+                                    <label class="col-form-label">Bonificación Variable</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text">GTQ</span>
+                                        <input type="text" class="form-control" name="bonificacion_variable"
+                                            value="{{ $employee->salaryDetails->variable_bonus ?? '0.00' }}"/>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-sm-4">
+                                <div class="input-block mb-3">
+                                    <label class="col-form-label">Bonif. Variable sujeta a prestaciones</label>
+                                    <select class="form-control" name="bonificacion_variable_prestaciones">
+                                        <option value="">Seleccionar</option>
+                                        <option value="1" {{ ($employee->salaryDetails->bonus_subject_to_benefits ?? '') == 1 ? 'selected': '' }}>Sí</option>
+                                        <option value="0" {{ isset($employee->salaryDetails->bonus_subject_to_benefits) && $employee->salaryDetails->bonus_subject_to_benefits == 0 && $employee->salaryDetails->bonus_subject_to_benefits !== null ? 'selected': '' }}>No</option>
+                                        <option value="2" {{ ($employee->salaryDetails->bonus_subject_to_benefits ?? '') == 2 ? 'selected': '' }}>No aplica</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-sm-4">
+                                <div class="input-block mb-3">
+                                    <label class="col-form-label">Categoría de Premios</label>
+                                    <select class="form-control" name="categoria_premios">
+                                        <option value="">Seleccionar</option>
+                                        @foreach(['Supervisor','Jefe de tienda','Ventas','No aplica'] as $cat)
+                                            <option value="{{ $cat }}" {{ ($employee->salaryDetails->award_category ?? '') === $cat ? 'selected': '' }}>{{ $cat }}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="submit-section">
+                            <button class="btn btn-primary submit-btn" type="submit">Guardar</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        @endsuperadmin
 
     </div>
 
-
+</div>
 @endsection
-
-

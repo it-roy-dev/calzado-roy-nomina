@@ -34,6 +34,9 @@ Route::middleware(['auth'])->group(function () {
     Route::get('profile', [UserProfileController::class, 'index'])->name('profile');
     Route::get('profile/edit', [UserProfileController::class, 'edit'])->name('profile.edit');
     Route::post('profile', [UserProfileController::class, 'update']);
+    Route::post('employees/sync', [EmployeesController::class, 'sync'])->name('employees.sync');
+    Route::get('employees/{employee}/expediente', [EmployeesController::class, 'expediente'])->name('employees.expediente');
+    Route::post('employees/{employee}/expediente', [EmployeesController::class, 'saveExpediente'])->name('employees.expediente.save');
 
     Route::group(['prefix' => 'apps'], function(){
         Route::get('chat/{contact?}', [ChatAppController::class, 'index'])->name('app.chat');

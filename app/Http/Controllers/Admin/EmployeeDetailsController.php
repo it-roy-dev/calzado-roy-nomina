@@ -25,18 +25,23 @@ class EmployeeDetailsController extends BaseController
     public function updatePersonalInfo(Request $request, EmployeeDetail $employeeDetail)
     {
         $employeeDetail->update([
-            'passport_no' => $request->passport,
+            'passport_no'          => $request->passport,
             'passport_expiry_date' => $request->expiry_date,
-            'passport_tel' => $request->tel,
-            'nationality' => $request->nationality,
-            'religion' => $request->religion,
-            'ethnicity' => $request->ethnicity,
-            'marital_status' => $request->marital_status,
-            'spouse_occupation' => $request->spouse_occupation,
-            'no_of_children' => $request->children,
-            'dob' => $request->dob,
-            'date_joined' => $request->date_joined, 
+            'passport_tel'         => $request->tel,
+            'nationality'          => $request->nationality,
+            'religion'             => $request->religion,
+            'ethnicity'            => $request->ethnicity,
+            'marital_status'       => $request->marital_status,
+            'spouse_occupation'    => $request->spouse_occupation,
+            'no_of_children'       => $request->children,
+            'dob'                  => $request->dob,
+            'date_joined'          => $request->date_joined,
         ]);
+
+        // Intentar asignar código si aún no tiene
+        $employeeDetail->refresh();
+        $employeeDetail->assignCode();
+
         $notification = notify(__("Personal Information has been updated"));
         return back()->with($notification);
     }
@@ -109,33 +114,35 @@ class EmployeeDetailsController extends BaseController
     {
         $request->validate([
             'base_salary' => 'required|numeric',
-            'pf_number' => 'nullable|required_if:pf_contribution,1|numeric',
-            'total_pf_rate' => 'nullable|numeric',
-            'esi_number' => 'nullable|required_if:esi_contribution,1',
-            'addtional_esi_rate' => 'nullable|numeric',
-            'total_esi_rate' => 'nullable|numeric',
         ]);
-        EmployeeSalaryDetail::updateOrCreate([
-            'id' => $request->salary_detail_id,
-            'employee_detail_id' => $employeeDetail->id
-        ],[
-            'employee_detail_id' => $employeeDetail->id,
-            'basis' => $request->basis ?? SalaryType::Monthly,
-            'base_salary' => $request->base_salary,
-            'payment_method' => $request->payment_method ?? PaymentMethod::BankTransfer,
-            'pf_contribution' => $request->pf_contribution ?? 0,
-            'pf_number' => $request->pf_number,
-            'additional_pf' => $request->additional_pf_rate ?? 0.00,
-            'total_pf_rate' => $request->total_pf_rate ?? 0.00,
-            'esi_contribution' => $request->esi_contribution,
-            'esi_number' => $request->esi_number,
-            'additional_esi_rate' => $request->additional_esi_rate ?? 0.00,
-            'total_additional_esi_rate' => $request->total_esi_rate ?? 0.00
-        ]);
-        $notification = notify(__('Salary details has been updated'));
+
+        $salaryBasis = $request->basis
+            ? \App\Enums\Payroll\SalaryType::from($request->basis)
+            : \App\Enums\Payroll\SalaryType::from('monthly');
+
+        $paymentMethod = $request->payment_method
+            ? \App\Enums\Payroll\PaymentMethod::from($request->payment_method)
+            : null;
+
+        EmployeeSalaryDetail::updateOrCreate(
+            ['employee_detail_id' => $employeeDetail->id],
+            [
+                'employee_detail_id'        => $employeeDetail->id,
+                'basis'                     => $salaryBasis,
+                'base_salary'               => $request->base_salary,
+                'payment_method'            => $paymentMethod,
+                'bonificacion_decreto'      => $request->bonificacion_decreto ?: 250,
+                'variable_bonus'            => $request->bonificacion_variable ?: 0,
+                'bonus_subject_to_benefits' => $request->bonificacion_variable_prestaciones !== null 
+                                                ? $request->bonificacion_variable_prestaciones 
+                                                : null,
+                'award_category'            => $request->categoria_premios ?: null,
+            ]
+        );
+
+        $notification = notify(__('Información salarial actualizada'));
         return back()->with($notification);
     }
-
     public function deleteWorkExperience(Request $request, EmployeeWorkExperience $experience)
     {
         $experience->delete();

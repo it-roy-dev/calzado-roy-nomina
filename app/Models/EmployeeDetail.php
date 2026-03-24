@@ -35,6 +35,17 @@ class EmployeeDetail extends Model
         'spouse_occupation',
         'no_of_children',
         'disability',
+        'gender',
+        'phone_secondary',
+        'disability_description',
+        'personal_email',
+        'immediate_supervisor_name',
+        'payment_method',
+        'bank_name',
+        'bank_account_number',
+        'bank_account_type',
+        'no_aplica_familia',
+        'no_aplica_experiencia',
         
         // Trabajo en extranjero
         'worked_abroad',
@@ -74,6 +85,15 @@ class EmployeeDetail extends Model
         'dob',
         'created_at',
         'updated_at',
+
+
+
+        // Oracle / Códigos
+        'oracle_employee_id',
+        'oracle_emp_code',
+        'emp_code',
+        'status',
+        'oracle_active',
     ];
 
     protected $casts = [
@@ -141,4 +161,83 @@ class EmployeeDetail extends Model
         return $this->belongsTo(Store::class, 'store_id');
     }
     
+    /**
+     * Asignar código automáticamente basado en store_id o department_id
+     * Se llama cuando RH guarda nombre + (store_id o department_id)
+     */
+    public function assignCode(): bool
+    {
+        if (!empty($this->emp_code)) {
+            return false;
+        }
+
+        if (!$this->user || empty($this->user->firstname)) {
+            return false;
+        }
+
+        if (empty($this->store_id) && empty($this->department_id)) {
+            return false;
+        }
+
+        // Es ADMIN si tiene department_id
+        if (!empty($this->department_id)) {
+            $lastCode = EmployeeDetail::where('emp_code', 'LIKE', 'A-%')
+                ->whereNotNull('emp_code')
+                ->orderByRaw("LENGTH(emp_code) DESC, emp_code DESC")
+                ->value('emp_code');
+
+            $next = 1;
+            if ($lastCode) {
+                $next = ((int) substr($lastCode, 2)) + 1;
+            }
+
+            $this->emp_code = 'A-' . str_pad($next, 2, '0', STR_PAD_LEFT);
+
+        // Es TIENDA si tiene store_id
+        } else {
+            $store = $this->store()->first();
+            $storeNo = $store->oracle_store_no ?? $this->store_id;
+            $prefix  = "T-{$storeNo}-";
+
+            $lastCode = EmployeeDetail::where('emp_code', 'LIKE', "{$prefix}%")
+                ->whereNotNull('emp_code')
+                ->orderByRaw("LENGTH(emp_code) DESC, emp_code DESC")
+                ->value('emp_code');
+
+            $next = 1;
+            if ($lastCode) {
+                $next = ((int) substr($lastCode, strlen($prefix))) + 1;
+            }
+
+            $this->emp_code = $prefix . str_pad($next, 2, '0', STR_PAD_LEFT);
+        }
+
+        $this->save();
+        return true;
+    }
+
+    /**
+     * Verificar si el empleado tiene los campos mínimos para asignar código
+     */
+    public function canAssignCode(): bool
+    {
+        return empty($this->emp_code)
+            && $this->user
+            && !empty($this->user->firstname)
+            && (!empty($this->store_id) || !empty($this->department_id));
+    }
+
+    /**
+     * Obtener etiqueta de status para la UI
+     */
+    public function getStatusLabelAttribute(): array
+    {
+        return match($this->status) {
+            'PENDIENTE'    => ['label' => 'Pendiente',     'color' => 'yellow'],
+            'COMPLETO'     => ['label' => 'Completo',      'color' => 'green'],
+            'DAR_DE_BAJA'  => ['label' => 'Dar de baja',   'color' => 'red'],
+            'INACTIVO'     => ['label' => 'Inactivo',      'color' => 'gray'],
+            default        => ['label' => 'Sin estado',    'color' => 'gray'],
+        };
+    }
 }
