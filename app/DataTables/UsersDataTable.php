@@ -51,6 +51,15 @@ class UsersDataTable extends DataTable
                     return implode(',', $row->roles->pluck('name')->all());
                 }
             })
+            ->addColumn('tipo', function ($row) {
+                if ($row->type === UserType::SUPERADMIN) {
+                    return '<span style="background:#d1fae5;color:#065f46;padding:3px 10px;border-radius:6px;font-size:11px;font-weight:700">Admin</span>';
+                } elseif (str_starts_with($row->username ?? '', '10')) {
+                    return '<span style="background:#dbeafe;color:#1e40af;padding:3px 10px;border-radius:6px;font-size:11px;font-weight:700">Tienda</span>';
+                } else {
+                    return '<span style="background:#f1f5f9;color:#475569;padding:3px 10px;border-radius:6px;font-size:11px;font-weight:700">Empleado</span>';
+                }
+            })
             ->editColumn('created_at', function ($row) {
                 if (!empty($row->created_at)) {
                     return format_date($row->created_at);
@@ -61,7 +70,7 @@ class UsersDataTable extends DataTable
                 return view('pages.users.action', compact(
                     'id'
                 ));
-            })->rawColumns(['fullname','action']);
+            })->rawColumns(['fullname','action', 'tipo']);
     }
 
     /**
@@ -69,7 +78,18 @@ class UsersDataTable extends DataTable
      */
     public function query(User $model): QueryBuilder
     {
-        return $model->where('type',UserType::SUPERADMIN)->newQuery();
+        return $model->with('roles')
+            ->where(function($q) {
+                // Usuarios admin/sistema (SUPERADMIN)
+                $q->where('type', UserType::SUPERADMIN)
+                // Usuarios de tienda (username empieza con 10)
+                ->orWhere('username', 'like', '10%')
+                // Empleados admin (tienen departamento asignado)
+                ->orWhereHas('employeeDetail', function($e) {
+                    $e->whereNotNull('department_id');
+                });
+            })
+            ->newQuery();
     }
 
     /**
@@ -100,7 +120,8 @@ class UsersDataTable extends DataTable
     public function getColumns(): array
     {
         return [
-            Column::make('fullname'),
+            Column::make('fullname')->title('Nombre'),
+            Column::make('tipo')->title('Tipo'),
             Column::make('username')->searchable(),
             Column::make('email')->searchable(),
             Column::make('phone')->searchable(),

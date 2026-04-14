@@ -27,7 +27,7 @@ class DashboardController extends BaseController
         $projects = null;
         if(!empty(module('Project')) && module('Project')->isEnabled()){
             $projects = \Modules\Project\Models\Project::get();
-            $recentProjects = \Modules\Project\Models\Project::whereMonth('created_at', Carbon::today())->get();
+            $recentProjects = [];
         }
         $clients = User::where('type', UserType::CLIENT)->get();
         $thisMonthClients = User::where('type', UserType::CLIENT)->whereMonth('created_at', Carbon::today())->get();
@@ -97,7 +97,7 @@ class DashboardController extends BaseController
         $this->data['employees'] = (!empty($employees) && $employees->count() > 0) ? $employees: null;
         $this->data['tickets'] = (!empty($tickets) && $tickets->count() > 0) ? $tickets: null;
         $this->data['projects'] = $projects;
-        $this->data['recentProjects'] = $recentProjects;
+        $this->data['recentProjects'] = [];
         return view('pages.dashboard', $this->data);
     }
 }

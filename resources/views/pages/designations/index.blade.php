@@ -6,13 +6,13 @@
 
         <!-- Page Header -->
         <x-breadcrumb class="col">
-            <x-slot name="title">{{ __('Designations') }}</x-slot>
+            <x-slot name="title">{{ __('Puestos') }}</x-slot>
             <ul class="breadcrumb">
                 <li class="breadcrumb-item">
                     <a href="{{ route('dashboard') }}">{{ __('Dashboard') }}</a>
                 </li>
                 <li class="breadcrumb-item active">
-                    {{ __('Designations') }}
+                    {{ __('Puestos') }}
                 </li>
             </ul>
             <x-slot name="right">

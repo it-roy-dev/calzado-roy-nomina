@@ -108,9 +108,42 @@ class SyncEmployeesFromOracle extends Command
                 ]
             );
             
+            // Crear usuario de tienda si no existe y es tienda activa (no admin)
+            if ($type === 'tienda' && $oracleStore['STORE_NO'] > 0) {
+                $storeUsername = '10' . $oracleStore['STORE_NO'];
+                $storeEmail    = $storeUsername . '@calzadoroy.com';
+
+                $existeUsuario = \App\Models\User::where('username', $storeUsername)->first();
+
+                if (!$existeUsuario) {
+                    $nuevoUsuario = \App\Models\User::create([
+                        'firstname'  => 'Tienda',
+                        'lastname'   => $oracleStore['STORE_NAME'],
+                        'email'      => $storeEmail,
+                        'username'   => $storeUsername,
+                        'type'       => 'Employee',
+                        'password'   => bcrypt($storeUsername),
+                        'is_active'  => true,
+                    ]);
+
+                    $nuevoUsuario->assignRole('Tienda');
+
+                    // Asociar a la tienda recién creada o actualizada
+                    $store = \App\Models\Store::where('oracle_store_sid', $oracleStore['SID'])->first();
+                    if ($store) {
+                        \App\Models\StoreUser::updateOrCreate(
+                            ['user_id' => $store->id],
+                            ['user_id' => $nuevoUsuario->id, 'store_id' => $store->id]
+                        );
+                    }
+
+                    $this->info("   Usuario tienda creado: {$storeEmail}");
+                }
+            }
+
             $synced++;
         }
-        
+
         $this->info("   $synced tiendas de Guatemala sincronizadas");
     }
     
@@ -487,7 +520,7 @@ class SyncEmployeesFromOracle extends Command
                         ) as REAL_STORE_SID
                     FROM RPS.EMPLOYEE e
                     WHERE e.SBS_SID = 680861302000159257
-                    AND e.ACTIVE = 1
+                    --AND e.ACTIVE = 1
                     AND e.FULL_NAME IS NOT NULL
                     AND e.USER_NAME IS NOT NULL
                     AND e.USER_NAME >= '3000'
@@ -501,6 +534,7 @@ class SyncEmployeesFromOracle extends Command
         $created = 0;
         $skipped = 0;
         $markedInactive = 0;
+        $bajaEmployees = [];
         
         // Obtener tienda por defecto (SERVIDOR TIENDAS)
         $defaultStore = Store::where('oracle_store_code', '000')->first();
@@ -531,6 +565,8 @@ class SyncEmployeesFromOracle extends Command
                         'status' => 'DAR_DE_BAJA',
                     ]);
                     $markedInactive++;
+                    $nombre = $existing->user->fullname ?? $oracleEmployee['USER_NAME'];
+                    $bajaEmployees[] = $nombre;
                     $this->warn("   Empleado {$oracleEmployee['USER_NAME']} marcado como DAR_DE_BAJA");
                 } else {
                     // CASO A o C: Actualizar solo datos básicos de Oracle
@@ -550,7 +586,11 @@ class SyncEmployeesFromOracle extends Command
                 continue;
             }
             
-            // CASO: EMPLEADO NUEVO
+            // CASO: EMPLEADO NUEVO — ignorar si ya nace inactivo en Oracle
+            if ($oracleEmployee['ACTIVE'] == '0') {
+                continue;
+            }
+
             $store = null;
 
             // Primero intentar con BASE_STORE_SID (si no es SERVIDOR TIENDAS)
@@ -633,7 +673,7 @@ class SyncEmployeesFromOracle extends Command
                 'lastname' => $lastname,
                 'username' => $oracleEmployee['USER_NAME'],
                 'type' => 'Employee',
-                'password' => bcrypt('123456'),
+                'password' => bcrypt($oracleEmployee['USER_NAME']),
                 'is_active' => $oracleEmployee['USER_ACTIVE'] == '1',
             ]);
             
@@ -664,6 +704,11 @@ class SyncEmployeesFromOracle extends Command
         
         if ($skipped > 0) {
             $this->warn("   $skipped empleados omitidos");
+        }
+
+        // Guardar empleados DAR_DE_BAJA para retornar al controlador
+        if (!empty($bajaEmployees)) {
+            cache()->put('sync_baja_employees', $bajaEmployees, now()->addMinutes(5));
         }
     }
 }

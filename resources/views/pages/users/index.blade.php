@@ -7,20 +7,20 @@
 
         <!-- Page Header -->
         <x-breadcrumb class="col">
-            <x-slot name="title">{{ __('Users') }}</x-slot>
+            <x-slot name="title">Usuarios</x-slot>
             <ul class="breadcrumb">
                 <li class="breadcrumb-item">
                     <a href="{{ route('dashboard') }}">{{ __('Dashboard') }}</a>
                 </li>
                 <li class="breadcrumb-item active">
-                    {{ __('User') }}
+                    {{ __('Usuario') }}
                 </li>
             </ul>
             <x-slot name="right">
                 <div class="col-auto float-end ms-auto">
                     <a href="javascript:void(0)" data-url="{{ route('users.create') }}" class="btn add-btn" data-ajax-modal="true"
-                        data-size="lg" data-title="Add User">
-                        <i class="fa-solid fa-plus"></i> {{ __('Add User') }}
+                        data-title="Agregar Usuario del Sistema">
+                            <i class="fa-solid fa-plus"></i> Agregar Usuario del Sistema
                     </a>
                 </div>
             </x-slot>

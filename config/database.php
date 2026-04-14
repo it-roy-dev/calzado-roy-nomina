@@ -92,6 +92,26 @@ return [
             'prefix_indexes' => true,
             'search_path' => 'public',
             'sslmode' => 'prefer',
+            'dump' => [
+            'dump_binary_path' => 'C:\\Program Files\\PostgreSQL\\16\\bin\\',
+            'use_single_transaction' => true,
+            'timeout' => 60,
+            'password' => env('DB_PASSWORD'),
+            ],
+        ],
+
+        //AGREGADO PARA CONEXIÓN MYSQL PLATAFORMA ROY EL 10/04/2026
+        'mysql_roy' => [
+            'driver'    => 'mysql',
+            'host'      => env('DB_MYSQL_HOST', '127.0.0.1'),
+            'port'      => env('DB_MYSQL_PORT', '3306'),
+            'database'  => env('DB_MYSQL_DATABASE', 'roy'),
+            'username'  => env('DB_MYSQL_USERNAME', 'root'),
+            'password'  => env('DB_MYSQL_PASSWORD', ''),
+            'charset'   => 'utf8mb4',
+            'collation' => 'utf8mb4_unicode_ci',
+            'prefix'    => '',
+            'strict'    => false,
         ],
 
         // AGREGADO PARA ORACLE EL 16/02/26

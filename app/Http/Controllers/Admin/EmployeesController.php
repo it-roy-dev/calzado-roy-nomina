@@ -24,6 +24,10 @@ class EmployeesController extends Controller
     {
         $pageTitle = __("Empleados");
         $employees = User::where('type', UserType::EMPLOYEE)
+            ->where(function($q) {
+                $q->whereDoesntHave('roles', fn($r) => $r->where('name', 'Tienda'))
+                ->orWhereHas('employeeDetail', fn($r) => $r->whereNotNull('oracle_emp_code'));
+            })
             ->with(['employeeDetail.designation', 'employeeDetail.store', 'employeeDetail.department'])
             ->get();
 
@@ -43,7 +47,12 @@ class EmployeesController extends Controller
     public function list(EmployeeDataTable $dataTable)
     {
         $pageTitle = __("Empleados");
-        $employees = User::where('type', UserType::EMPLOYEE)->get();
+        $employees = User::where('type', UserType::EMPLOYEE)
+            ->where(function($q) {
+                $q->whereDoesntHave('roles', fn($r) => $r->where('name', 'Tienda'))
+                ->orWhereHas('employeeDetail', fn($r) => $r->whereNotNull('oracle_emp_code'));
+            })
+            ->get();
 
         $counts = [
             'total'       => $employees->count(),
@@ -240,10 +249,14 @@ class EmployeesController extends Controller
             \Illuminate\Support\Facades\Artisan::call('employees:sync', [], $output);
             $result = $output->fetch();
 
+            // Recuperar empleados DAR_DE_BAJA del cache
+            $bajaEmployees = cache()->pull('sync_baja_employees', []);
+
             return response()->json([
-                'success' => true,
-                'message' => 'Sincronización completada',
-                'output'  => nl2br(e($result)),
+                'success'        => true,
+                'message'        => 'Sincronización completada',
+                'output'         => nl2br(e($result)),
+                'baja_employees' => $bajaEmployees,
             ]);
         } catch (\Exception $e) {
             return response()->json([
@@ -255,9 +268,9 @@ class EmployeesController extends Controller
 
     public function expediente(string $employee)
     {
-        $userId     = Crypt::decrypt($employee);
-        $user       = User::findOrFail($userId);
-        $detail     = $user->employeeDetail;
+        $userId      = Crypt::decrypt($employee);
+        $user        = User::findOrFail($userId);
+        $detail      = $user->employeeDetail;
         $departments = Department::orderBy('name')->get();
         $designations = Designation::orderBy('name')->get();
         $stores      = \App\Models\Store::where('is_active', true)
@@ -266,9 +279,43 @@ class EmployeesController extends Controller
                         ->get();
         $pageTitle   = 'Expediente — ' . $user->fullname;
 
+        // ── Horario en tiempo real ──
+        if ($detail->store_id && $detail->oracle_emp_code) {
+            // Empleado de tienda — jalar horario del centro comercial
+            $numeroTienda = $detail->store->oracle_store_no ?? null;
+            if ($numeroTienda) {
+                $horarios = \Illuminate\Support\Facades\DB::connection('mysql_roy')
+                    ->select("SELECT APERTURA, CIERRE FROM roy_horarios_cc_tiendas WHERE TIENDA = ? ORDER BY APERTURA ASC", [$numeroTienda]);
+
+                if (!empty($horarios)) {
+                    $aperturas   = array_column($horarios, 'APERTURA');
+                    $cierres     = array_column($horarios, 'CIERRE');
+                    $aperturaMin = min($aperturas);
+                    $cierreMax   = max($cierres);
+                    $detail->work_schedule       = "{$aperturaMin} - {$cierreMax}";
+                    $detail->work_hours_per_week = 44;
+                }
+            }
+        } elseif ($detail->department_id && $detail->oracle_emp_code) {
+            $horarioAdmin = \Illuminate\Support\Facades\DB::connection('mysql_roy')
+                ->select("SELECT HORA_ENTRADA, HORA_SALIDA FROM roy_horarios_admon WHERE CODIGO_EMPLEADO = ? LIMIT 1",
+                [$detail->oracle_emp_code]);
+
+            if (!empty($horarioAdmin)) {
+                $detail->work_schedule = $horarioAdmin[0]->HORA_ENTRADA . ' - ' . $horarioAdmin[0]->HORA_SALIDA;
+                $tieneHorarioAdmin = true;
+            } else {
+                $tieneHorarioAdmin = false;
+            }
+        } else {
+            $tieneHorarioAdmin = false;
+        }
+
+        $tieneHorarioAdmin = $tieneHorarioAdmin ?? false;
         return view('pages.employees.expediente', compact(
-            'user', 'detail', 'departments', 'designations', 'stores', 'pageTitle'
+            'user', 'detail', 'departments', 'designations', 'stores', 'pageTitle', 'tieneHorarioAdmin'
         ));
+        
     }
 
     public function saveExpediente(Request $request, string $employee)
@@ -279,6 +326,35 @@ class EmployeesController extends Controller
 
         if (!$detail) {
             return back()->with(notify(__('No se encontró el expediente del empleado')));
+        }
+
+        // ── Validación de campos únicos ──
+        $camposUnicos = [
+            'dpi_number'  => ['label' => 'DPI',        'valor' => $request->dpi_number],
+            'nit_number'  => ['label' => 'NIT',        'valor' => $request->nit_number],
+            'igss_number' => ['label' => 'No. IGSS',   'valor' => $request->igss_number],
+            'irtra_number'=> ['label' => 'No. IRTRA',  'valor' => $request->irtra_number],
+        ];
+
+        $duplicados = [];
+
+        foreach ($camposUnicos as $campo => $info) {
+            if (empty($info['valor'])) continue;
+
+            $duplicado = EmployeeDetail::where($campo, $info['valor'])
+                ->where('id', '!=', $detail->id) // excluir el mismo empleado
+                ->with('user')
+                ->first();
+
+            if ($duplicado) {
+                $nombre = $duplicado->user->fullname ?? 'Empleado desconocido';
+                $codigo = $duplicado->oracle_emp_code ?? $duplicado->emp_code ?? 'Sin código';
+                $duplicados[] = "{$info['label']}: <strong>{$info['valor']}</strong> — ya registrado por: <strong>{$nombre}</strong> (Código: {$codigo})";
+            }
+        }
+
+        if (!empty($duplicados)) {
+            return back()->withInput()->with('duplicados_error', $duplicados);
         }
 
         // Actualizar datos del expediente
@@ -383,7 +459,7 @@ class EmployeesController extends Controller
                 'basis'                     => $salaryBasis,
                 'base_salary'               => $request->base_salary ?? 0,
                 'bonificacion_decreto'      => $request->bonificacion_decreto ?? 250,
-                'variable_bonus'            => $request->bonificacion_variable ?? 0,
+                'variable_bonus'            => $request->input('bonificacion_variable') ?? 0,
                 'bonus_subject_to_benefits' => $request->bonificacion_variable_prestaciones ?? 0,
                 'award_category'            => $request->categoria_premios,
                 'payment_method'            => $request->salary_payment_method ? \App\Enums\Payroll\PaymentMethod::from($request->salary_payment_method) : null,
@@ -398,44 +474,156 @@ class EmployeesController extends Controller
         $familiaOk     = $user->family->count() > 0 || $request->has('no_aplica_familia');
         $experienciaOk = $detail->workExperience->count() > 0 || $request->has('no_aplica_experiencia');
 
-        $isComplete = !empty($detail->dpi_number)
-            && !empty($detail->nit_number)
-            && !empty($detail->dob)
-            && !empty($detail->birth_place)
-            && !empty($detail->nationality)
-            && !empty($detail->marital_status)
-            && !empty($detail->gender)
-            && !empty($detail->igss_number)
-            && !empty($detail->irtra_number)
-            && !empty($detail->date_joined)
-            && !empty($detail->contract_type)
-            && !empty($detail->work_schedule)
-            && !empty($detail->work_hours_per_week)
-            && !empty($detail->immediate_supervisor_name)
-            && !empty($detail->payment_method)
-            && !empty($detail->bank_name)
-            && !empty($detail->bank_account_number)
-            && !empty($detail->bank_account_type)
-            && (!empty($detail->store_id) || !empty($detail->department_id))
-            && $familiaOk
-            && $experienciaOk;
+        // Verificar campos requeridos y notificar cuáles faltan
+        $camposRequeridos = [
+            'dpi_number'               => 'DPI',
+            'nit_number'               => 'NIT',
+            'dob'                      => 'Fecha de nacimiento',
+            'birth_place'              => 'Lugar de nacimiento',
+            'nationality'              => 'Nacionalidad',
+            'marital_status'           => 'Estado civil',
+            'gender'                   => 'Género',
+            'igss_number'              => 'No. IGSS',
+            'date_joined'              => 'Fecha de ingreso',
+            'contract_type'            => 'Tipo de contrato',
+            'work_schedule'            => 'Horario de trabajo',
+            'work_hours_per_week'      => 'Horas por semana',
+            'immediate_supervisor_name'=> 'Jefe inmediato',
+            'payment_method'           => 'Forma de pago',
+            'bank_name'                => 'Banco',
+            'bank_account_number'      => 'Número de cuenta',
+            'bank_account_type'        => 'Tipo de cuenta',
+        ];
 
-        if ($isComplete) {
-            $detail->update(['status' => 'COMPLETO']);
-        } else {
-            // Si estaba COMPLETO y le quitaron datos, vuelve a PENDIENTE
-            if ($detail->status === 'COMPLETO') {
-                $detail->update(['status' => 'PENDIENTE']);
+        $camposFaltantes = [];
+        foreach ($camposRequeridos as $campo => $etiqueta) {
+            if (empty($detail->$campo)) {
+                $camposFaltantes[] = $etiqueta;
             }
         }
 
-        $notification = notify(__('Expediente actualizado correctamente'));
+        // Verificar ubicación (tienda o departamento)
+        if (empty($detail->store_id) && empty($detail->department_id)) {
+            $camposFaltantes[] = 'Tienda o Departamento';
+        }
 
-        if (!$isComplete && $detail->status === 'PENDIENTE') {
-            $notification = notify(__('Expediente guardado pero incompleto. Verifica que todos los campos requeridos estén llenos.'), 'warning');
+        $familiaOk     = $user->family->count() > 0 || $detail->no_aplica_familia;
+        $experienciaOk = $detail->workExperience->count() > 0 || $detail->no_aplica_experiencia;
+
+        if (!$familiaOk) $camposFaltantes[] = 'Información familiar';
+        if (!$experienciaOk) $camposFaltantes[] = 'Experiencia laboral';
+
+        $isComplete = empty($camposFaltantes);
+
+        $detail->update(['status' => $isComplete ? 'COMPLETO' : 'PENDIENTE']);
+
+        if ($isComplete) {
+            $notification = notify(__('Expediente actualizado correctamente'));
+        } else {
+            $faltanTexto = implode(', ', $camposFaltantes);
+            $notification = notify(__("Expediente guardado pero incompleto. Campos faltantes: {$faltanTexto}"), 'warning');
+        }
+
+        // ── Sincronizar automáticamente con nóminas en BORRADOR del mes actual ──
+        $nominasBorrador = \App\Models\Nomina::where('estado', 'BORRADOR')
+            ->where('mes', now()->month)
+            ->where('anio', now()->year)
+            ->get();
+
+        foreach ($nominasBorrador as $nomina) {
+            $detalle = \App\Models\NominaDetalle::where('nomina_id', $nomina->id)
+                ->where('employee_detail_id', $detail->id)
+                ->first();
+
+            if (!$detalle) continue;
+
+            // Actualizar datos bancarios
+            $detalle->cuenta_banco     = $detail->bank_account_number;
+            $detalle->referencia_banco = $detail->bank_account_number;
+
+            // Si el expediente está completo, limpiar la observación de pendiente
+            if ($isComplete && str_contains($detalle->observacion ?? '', 'PENDIENTE')) {
+                $detalle->observacion = null;
+            }
+
+            // Recalcular días trabajados según fecha de ingreso
+            $nominaService = app(\App\Services\NominaService::class);
+            $detalle->dias_trabajados = $nominaService->calcularDiasTrabajados(
+                $detail, 
+                $nomina->mes, 
+                $nomina->anio
+            );
+
+            // Actualizar salario base y bono variable si cambiaron
+            $nuevoSalario     = $detail->salaryDetails->base_salary ?? 0;
+            $nuevoBono        = $detail->salaryDetails->variable_bonus ?? 0;
+
+            if ($nuevoSalario > 0 && $detalle->salario_base != $nuevoSalario) {
+                $detalle->salario_base = $nuevoSalario;
+            }
+
+            $detalle->bono_variable = $nuevoBono;
+
+            // Recalcular con los nuevos datos
+            $detalle->load('nomina');
+            $detalle->recalcular();
+            $detalle->save();
+
+            // Actualizar totales de la cabecera
+            app(\App\Services\NominaService::class)->recalcularTotales($nomina);
         }
 
         return redirect()->route('employees.show', $employee)->with($notification);
+    }
+
+    public function saveHorarioAdmin(Request $request, string $employee)
+    {
+        $userId = Crypt::decrypt($employee);
+        $user   = User::findOrFail($userId);
+        $detail = $user->employeeDetail;
+
+        $dias = ['LUNES', 'MARTES', 'MIERCOLES', 'JUEVES', 'VIERNES'];
+
+        foreach ($dias as $dia) {
+            $entrada = $request->input('horario.' . $dia . '.entrada');
+            $salida  = $request->input('horario.' . $dia . '.salida');
+
+            if (empty($entrada) || empty($salida)) continue;
+
+            // Verificar si ya existe
+            $existe = \Illuminate\Support\Facades\DB::connection('mysql_roy')
+                ->select("SELECT ID FROM roy_horarios_admon WHERE CODIGO_EMPLEADO = ? AND DIA = ?",
+                [$detail->oracle_emp_code, $dia]);
+
+            if ($existe) {
+                \Illuminate\Support\Facades\DB::connection('mysql_roy')
+                    ->update("UPDATE roy_horarios_admon SET HORA_ENTRADA = ?, HORA_SALIDA = ? WHERE CODIGO_EMPLEADO = ? AND DIA = ?",
+                    [$entrada, $salida, $detail->oracle_emp_code, $dia]);
+            } else {
+                \Illuminate\Support\Facades\DB::connection('mysql_roy')
+                    ->insert("INSERT INTO roy_horarios_admon (TIENDA, CODIGO_EMPLEADO, DEPARTAMENTO, DIA, HORA_ENTRADA, HORA_SALIDA, PUESTO) VALUES (0, ?, ?, ?, ?, ?, ?)",
+                    [
+                        $detail->oracle_emp_code,
+                        $detail->department->name ?? 'ADMIN',
+                        $dia,
+                        $entrada,
+                        $salida,
+                        $detail->designation->name ?? 'ADMIN',
+                    ]);
+            }
+        }
+
+        // Actualizar work_schedule en el expediente
+        $detail->update(['work_schedule' => $request->input('horario.LUNES.entrada') . ' - ' . $request->input('horario.VIERNES.salida')]);
+
+        $horarioTexto = $request->input('horario.LUNES.entrada') . ' - ' . $request->input('horario.VIERNES.salida');
+
+            if ($request->expectsJson()) {
+                return response()->json(['success' => true, 'horario' => $horarioTexto]);
+            }
+
+            return redirect()->route('employees.expediente', \Crypt::encrypt($user->id))
+                ->with(notify('Horario guardado correctamente.'));
     }
 
 }

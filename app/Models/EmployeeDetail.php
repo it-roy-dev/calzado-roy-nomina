@@ -161,6 +161,21 @@ class EmployeeDetail extends Model
         return $this->belongsTo(Store::class, 'store_id');
     }
     
+    public function uniformes()
+    {
+        return $this->hasMany(Uniforme::class, 'employee_detail_id');
+    }
+
+    public function uniformeActivo()
+    {
+        return $this->hasOne(Uniforme::class, 'employee_detail_id')
+                    ->where('estado', 'ACTIVO');
+    }
+
+    public function nominaDetalles()
+    {
+        return $this->hasMany(NominaDetalle::class, 'employee_detail_id');
+    }
     /**
      * Asignar código automáticamente basado en store_id o department_id
      * Se llama cuando RH guarda nombre + (store_id o department_id)

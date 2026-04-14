@@ -13,7 +13,7 @@ class AppMenuListener
     /**
      * Create the event listener.
      */
-    public function __construct()
+   /* public function __construct()
     {
         //
     }
@@ -24,7 +24,7 @@ class AppMenuListener
     public function handle(AppMenuEvent $event): void
     {
         
-        if(auth()->user()->canAny(['view-projects','view-taskboards'])){
+       /* if(auth()->user()->canAny(['view-projects','view-taskboards'])){
                 $menu = $event->menu;
                 $activeClass = route_is(["projects.*","task-boards.*"]) ? "active" : "";
                 $menu
@@ -39,6 +39,6 @@ class AppMenuListener
                             ->addParentClass('submenu')
                     );
 
-        }
+        }*/
     }
 }

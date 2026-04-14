@@ -23,6 +23,10 @@ use App\Http\Controllers\Admin\AttendancesController;
 use App\Http\Controllers\Admin\DepartmentsController;
 use App\Http\Controllers\Admin\DesignationsController;
 use App\Http\Controllers\Admin\EmployeeDetailsController;
+use App\Http\Controllers\NominaController;
+use App\Http\Controllers\UniformeController;
+use App\Http\Controllers\BoletaController;
+use Illuminate\Support\Facades\Artisan;
 
 include __DIR__ . '/auth.php';
 
@@ -37,6 +41,53 @@ Route::middleware(['auth'])->group(function () {
     Route::post('employees/sync', [EmployeesController::class, 'sync'])->name('employees.sync');
     Route::get('employees/{employee}/expediente', [EmployeesController::class, 'expediente'])->name('employees.expediente');
     Route::post('employees/{employee}/expediente', [EmployeesController::class, 'saveExpediente'])->name('employees.expediente.save');
+    Route::post('employees/{employee}/horario-admin', [EmployeesController::class, 'saveHorarioAdmin'])->name('employees.horario.admin');
+    Route::post('/backups/create', function() {
+        $pgdump = 'C:\\Program Files\\PostgreSQL\\16\\bin\\pg_dump.exe';
+        $host = env('DB_HOST', '127.0.0.1');
+        $port = env('DB_PORT', '5432');
+        $user = env('DB_USERNAME', 'postgres');
+        $pass = env('DB_PASSWORD', 'roy');
+        $db   = env('DB_DATABASE', 'nomina');
+        
+        $date    = date('Y-m-d-H-i-s');
+        $sqlFile = storage_path("app\\backup-temp\\{$date}.sql");
+        $zipFile = storage_path("app\\Laravel\\{$date}.zip");
+        
+        // Crear directorios
+        @mkdir(storage_path('app\\backup-temp'), 0755, true);
+        @mkdir(storage_path('app\\Laravel'), 0755, true);
+        
+        // Hacer dump
+        putenv("PGPASSWORD={$pass}");
+        $cmd = "\"$pgdump\" -h {$host} -p {$port} -U {$user} -d {$db} -f \"{$sqlFile}\" 2>&1";
+        shell_exec($cmd);
+        
+        if (!file_exists($sqlFile)) {
+            return back()->with('error', 'Error al crear el dump SQL.');
+        }
+        
+        // Crear ZIP
+        $zip = new ZipArchive();
+        $zip->open($zipFile, ZipArchive::CREATE);
+        $zip->addFile($sqlFile, basename($sqlFile));
+        $zip->close();
+        
+        // Limpiar SQL temporal
+        unlink($sqlFile);
+        
+        return back()->with('success', 'Respaldo creado correctamente.');
+    })->name('backups.create')->middleware('auth');
+
+    Route::post('/backups/create-files', function() {
+        Artisan::call('backup:run');
+        return back()->with('success', 'Respaldo completo creado correctamente.');
+    })->name('backups.create-files')->middleware('auth');
+
+    Route::post('/backups/create-files', function() {
+        Artisan::call('backup:run');
+        return back()->with('success', 'Respaldo completo creado correctamente.');
+    })->name('backups.create-files')->middleware('auth');
 
     Route::group(['prefix' => 'apps'], function(){
         Route::get('chat/{contact?}', [ChatAppController::class, 'index'])->name('app.chat');
@@ -97,8 +148,37 @@ Route::middleware(['auth'])->group(function () {
         Route::get('mail', [SettingsController::class, 'email'])->name('settings.mail');
         Route::post('mail', [SettingsController::class, 'updateEmail'])->name('settings.mail.update');
     });
+
+    // Nómina
+    Route::prefix('nomina')->name('nomina.')->middleware(['auth'])->group(function () {
+        Route::get('/',                         [NominaController::class, 'index'])->name('index');
+        Route::post('/generar',                 [NominaController::class, 'generar'])->name('generar');
+        Route::get('/{nomina}',                 [NominaController::class, 'show'])->name('show');
+        Route::post('/detalle/{detalle}',        [NominaController::class, 'updateDetalle'])->name('detalle.update');
+        Route::post('/{nomina}/cerrar',         [NominaController::class, 'cerrar'])->name('cerrar');
+        Route::delete('/{nomina}',              [NominaController::class, 'destroy'])->name('destroy');
+        Route::get('/{nomina}/export-excel',    [NominaController::class, 'exportExcel'])->name('export.excel');
+        Route::get('/{nomina}/export-pdf',      [NominaController::class, 'exportPdf'])->name('export.pdf');
+    });
+
+    // Módulo de Boletas
+    Route::prefix('boletas')->name('boletas.')->group(function () {
+        Route::get('/',           [BoletaController::class, 'index'])->name('index');
+        Route::get('/tienda',     [BoletaController::class, 'misTienda'])->name('tienda');
+        Route::get('/mis-recibos',[BoletaController::class, 'misRecibos'])->name('mis-recibos');
+        Route::get('/{boleta}',   [BoletaController::class, 'ver'])->name('ver');
+        Route::post('/firma/registrar', [BoletaController::class, 'registrarFirma'])->name('firma.registrar');
+        Route::post('/{boleta}/firmar', [BoletaController::class, 'firmar'])->name('firmar');
+        Route::get('/firma/verificar', [BoletaController::class, 'verificarFirma'])->name('firma.verificar');
+    });
 });
 
+Route::prefix('uniformes')->name('uniformes.')->middleware(['auth'])->group(function () {
+    Route::get('/',                     [UniformeController::class, 'index'])->name('index');
+    Route::get('/crear',                [UniformeController::class, 'create'])->name('create');
+    Route::post('/',                    [UniformeController::class, 'store'])->name('store');
+    Route::post('/{uniforme}/anular',   [UniformeController::class, 'anular'])->name('anular');
+});
 // RUTA TEMPORAL PARA PROBAR ORACLE
 Route::get('/test-oracle', function () {
     try {

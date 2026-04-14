@@ -13,7 +13,7 @@ class AppMenuListener
     /**
      * Create the event listener.
      */
-    public function __construct()
+  /*  public function __construct()
     {
         //
     }
@@ -23,7 +23,7 @@ class AppMenuListener
      */
     public function handle(AppMenuEvent $event): void
     {
-        $menu = $event->menu;
+       /* $menu = $event->menu;
         if(auth()->user()->canAny(['view-taxes','view-expenses','view-estimates','view-invoices'])){
 
             $activeClass = route_is(["taxes.*","expenses.*","estimates.*","invoices.*"]) ? "active" : "";
@@ -45,6 +45,6 @@ class AppMenuListener
                         )
                         ->addParentClass('submenu')
                 );
-        }
+        }*/
     }
 }
